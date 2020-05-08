@@ -1,4 +1,4 @@
-version = "0.0.1"
+version = "0.0.2"
 author = "disruptek"
 description = "generate random names"
 license = "MIT"

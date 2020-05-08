@@ -23,7 +23,7 @@ proc newSuggCall*(args: openArray[tuple[key, val: string]]): RestCall =
   result = newDataMuseCall(suggUrl ? args, name = "datamuse suggestions")
 
 proc muse(rel_rhy = ""; rel_trg = ""; rel_jja = ""; rel_jjb = "";
-          sp = ""; ml = ""; sl = ""; sugg = ""; lc = "") =
+          sp = ""; ml = ""; sl = ""; sugg = ""; lc = ""; topics = "") =
   var
     args = toSeq {
       "rel_rhy": rel_rhy,
@@ -35,6 +35,7 @@ proc muse(rel_rhy = ""; rel_trg = ""; rel_jja = ""; rel_jjb = "";
       "lc": lc,
       "ml": ml,
       "sl": sl,
+      "topics": "",
     }
   args.keepItIf it[1] != ""
   var

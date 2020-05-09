@@ -100,7 +100,7 @@ proc addArgument(params: var seq[NimNode]; args: NimNode;
     if `sw` != "":
       `args`.add (`sws`, `sw`)
 
-macro makeMuse(kind: QueryKind; name: string): NimNode =
+macro makeMuse(kind: QueryKind; name: string): untyped =
   ## generate some cligen entry points that are correct by construction
   let
     args = ident"args"
@@ -143,7 +143,6 @@ macro makeMuse(kind: QueryKind; name: string): NimNode =
 
   # generate the proc node
   result = newProc(name, params, body)
-  echo result.repr
   when false:
     for result in js.items:
       `call`.results.add Result(word: result["word"].getStr,

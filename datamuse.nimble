@@ -27,3 +27,6 @@ proc execTest(test: string) =
 
 task test, "run tests for travis":
   execTest("tests/tmuse.nim")
+
+task docs, "generate docs":
+  exec "nim doc --project --out:docs datamuse.nim"

@@ -13,45 +13,46 @@ import rest
 import cutelog
 
 type
+  HelpText = tuple[switch: string; help: string]
   Lookup* = enum
-    MeansLike = "ml"
-    SoundsLike = "sl"
-    SpelledLike = "sp"
-    Vocabulary = "v"
-    Topics = "topics"
-    LeftContext = "lc"
-    RightContext = "rc"
-    MaximumResults = "max"
-    QueryEcho = "qe"
+    MeansLike = "ml: means like"
+    SoundsLike = "sl: sounds like"
+    SpelledLike = "sp: spelled like"
+    Vocabulary = "v: vocabulary"
+    Topics = "topics: concepts like"
+    LeftContext = "lc: left context"
+    RightContext = "rc: right context"
+    MaximumResults = "max: limit results"
+    QueryEcho = "qe: reproduce query"
 
   Related* = enum
-    jja = "jja"
-    jjb = "jjb"
-    syn = "syn"
-    trg = "trg"
-    ant = "ant"
-    spc = "spc"
-    gen = "gen"
-    com = "com"
-    par = "par"
-    bga = "bga"
-    bgb = "bgb"
-    rhy = "rhy"
-    nry = "nry"
-    hom = "hom"
-    cns = "cns"
+    jja = "jja: nouns"
+    jjb = "jjb: adjectives"
+    syn = "syn: synonyms"
+    trg = "trg: triggers"
+    ant = "ant: antonyms"
+    spc = "spc: kind of"
+    gen = "gen: hyponyms"
+    com = "com: holonyms"
+    par = "par: meronyms"
+    bga = "bga: followers"
+    bgb = "bgb: leaders"
+    rhy = "rhy: ideal rhymes"
+    nry = "nry: near rhymes"
+    hom = "hom: homophones"
+    cns = "cns: consonant"
 
   MetaData* = enum
-    Definitions = "d"
-    PartsOfSpeech = "p"
-    SyllableCount = "s"
-    Pronunciation = "r"
-    WordFrequency = "f"
+    Definitions = "d: definitions"
+    PartsOfSpeech = "p: parts of speech"
+    SyllableCount = "s: syllable count"
+    Pronunciation = "r: pronunciation"
+    WordFrequency = "f: word frequency"
 
   Suggestion* = enum
-    PrefixHint = "s"
-    MaximumSuggestions = "max"
-    SuggestionVocabulary = "v"
+    PrefixHint = "s: starts with"
+    MaximumSuggestions = "max: limit results"
+    SuggestionVocabulary = "v: vocabulary"
 
   Result* = object
     word: string
@@ -62,6 +63,7 @@ type
   QueryKind* = enum
     Lookups = "/words"
     Suggestions = "/sug"
+
   MuseCall* = object
     results: seq[Result]
     case kind: QueryKind
@@ -90,12 +92,23 @@ template newWordsCall*(args: openArray[tuple[key, val: string]]): RestCall =
 template newSuggCall*(args: openArray[tuple[key, val: string]]): RestCall =
   result = Suggestions.newMuseCall args
 
-proc addArgument(params: var seq[NimNode]; args: NimNode;
-                  switch: enum): NimNode =
+proc keyHelp(switch: string): HelpText =
+  ## produce name and help string from switch enum
+  const
+    splat = ": "
   let
-    sw = ident($switch)
-    sws = newStrLitNode($switch)
+    seqs = split(switch, splat, maxsplit = 1)
+  result = (switch: seqs[0], help: seqs[^1])
+
+proc addArgument(params: var seq[NimNode];
+                 help: var NimNode; args: NimNode;
+                 switch: enum; prefix = ""): NimNode =
+  let
+    h = keyHelp($switch)
+    sw = ident(h.switch)
+    sws = newStrLitNode(prefix & h.switch)
   params.add newIdentDefs(sw, ident"string", default = newStrLitNode"")
+  help.add newColonExpr(newLit(h.switch), newLit(h.help))
   result = quote do:
     if `sw` != "":
       `args`.add (`sws`, `sw`)
@@ -105,10 +118,12 @@ macro makeMuse(kind: QueryKind; name: string): untyped =
   let
     args = ident"args"
     call = ident"call"
+    helpIdent = ident($name & "_help")
     name = postfix(ident($name), "*")
 
   # setup each procedure
   var
+    help = newNimNode(nnkTableConstr)
     params: seq[NimNode] = @[ident"int"]
     body = newStmtList()
   body.add quote do:
@@ -119,16 +134,16 @@ macro makeMuse(kind: QueryKind; name: string): untyped =
   case $kind
   of "Lookups":
     for switch in Lookup.items:
-      body.add params.addArgument(args, switch)
+      body.add params.addArgument(help, args, switch)
     for switch in MetaData.items:
-      body.add params.addArgument(args, switch)
+      body.add params.addArgument(help, args, switch)
     for switch in Related.items:
-      body.add params.addArgument(args, switch)
+      body.add params.addArgument(help, args, switch, prefix = "rel_")
     body.add quote do:
       var `call` = newMuseCall(Lookups, `args`)
   of "Suggestions":
     for switch in Suggestion.items:
-      body.add params.addArgument(args, switch)
+      body.add params.addArgument(help, args, switch)
     body.add quote do:
       var `call` = newMuseCall(Suggestions, `args`)
 
@@ -141,8 +156,13 @@ macro makeMuse(kind: QueryKind; name: string): untyped =
     debug js.pretty
     return 0
 
+  result = newStmtList()
+  # create the help table
+  result.add newConstStmt(helpIdent, help)
   # generate the proc node
-  result = newProc(name, params, body)
+  result.add newProc(name, params, body)
+  echo result.repr
+
   when false:
     for result in js.items:
       `call`.results.add Result(word: result["word"].getStr,
@@ -167,4 +187,4 @@ when isMainModule:
   else:
     clCfg.version = "(unknown version)"
 
-  dispatchMulti [suggest], [lookup], cf = clCfg
+  dispatchMulti [suggest, help=suggest_help], [lookup, help=lookup_help]

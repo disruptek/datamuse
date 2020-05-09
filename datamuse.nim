@@ -158,7 +158,7 @@ macro makeMuse(kind: QueryKind; name: string): untyped =
 
   result = newStmtList()
   # create the help table
-  result.add newConstStmt(helpIdent, help)
+  result.add newConstStmt(helpIdent, newCall(ident"toTable", help))
   # generate the proc node
   result.add newProc(name, params, body)
   echo result.repr
